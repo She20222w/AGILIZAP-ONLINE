@@ -1,9 +1,7 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-
 // This client is safe to use in client-side and server-side components.
 export const createSupabaseClient = () => createClientComponentClient()
-
 
 export type Database = {
   public: {
@@ -13,7 +11,7 @@ export type Database = {
           id: string
           email: string
           phone: string
-          service_type: 'transcribe' | 'summarize'
+          service_type: 'transcribe' | 'summarize' | 'resumetranscribe'
           status: 'active' | 'inactive' | 'reseller'
           created_at: string
           last_payment_at: string
@@ -22,7 +20,7 @@ export type Database = {
           id: string
           email: string
           phone: string
-          service_type: 'transcribe' | 'summarize'
+          service_type: 'transcribe' | 'summarize' | 'resumetranscribe'
           status?: 'active' | 'inactive' | 'reseller'
           created_at?: string
           last_payment_at?: string
@@ -31,7 +29,7 @@ export type Database = {
           id?: string
           email?: string
           phone?: string
-          service_type?: 'transcribe' | 'summarize'
+          service_type?: 'transcribe' | 'summarize' | 'resumetranscribe'
           status?: 'active' | 'inactive' | 'reseller'
           created_at?: string
           last_payment_at?: string

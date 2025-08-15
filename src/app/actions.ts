@@ -23,7 +23,7 @@ const signupSchema = z.object({
             return false;
         }
     }, "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)."),
-    serviceType: z.enum(['transcribe', 'summarize']),
+    serviceType: z.enum(['transcribe', 'summarize', 'resumetranscribe']),
 });
 
 export async function login(values: z.infer<typeof loginSchema>) {
@@ -115,7 +115,7 @@ export async function logout() {
     redirect('/login');
 }
 
-export async function generateQrCode(data: { serviceType: 'transcribe' | 'summarize', phoneNumber: string }) {
+export async function generateQrCode(data: { serviceType: 'transcribe' | 'summarize' | 'resumetranscribe'; phoneNumber: string }) {
   console.log('Generating QR code for:', data);
   
   const isProduction = process.env.NODE_ENV === 'production';
@@ -147,7 +147,10 @@ export async function generateQrCode(data: { serviceType: 'transcribe' | 'summar
       throw new Error(`O serviço de QR Code falhou: ${response.statusText}`);
     }
 
-    const result = await response.json(); 
+    const result = await response.json();
+    if (result.success === false) {
+        return { success: false, error: 'Seu whatsapp já está conectado atualmente!' };
+    }
 
     if (!result.qrCodeImageBase64) {
         throw new Error('A resposta do webhook não continha um QR Code.');
@@ -177,7 +180,7 @@ export async function getUserProfile(userId: string) {
     }
 }
 
-export async function updateUserProfile(userId: string, updates: { service_type?: 'transcribe' | 'summarize' }) {
+export async function updateUserProfile(userId: string, updates: { service_type?: 'transcribe' | 'summarize' | 'resumetranscribe' }) {
     try {
         await updateUser(userId, updates);
         return { success: true };

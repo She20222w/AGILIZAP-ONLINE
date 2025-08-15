@@ -31,7 +31,7 @@ import { getUserProfile, updateUserProfile } from '@/app/actions';
 import { createSupabaseClient } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
-type ServiceType = 'transcribe' | 'summarize';
+type ServiceType = 'transcribe' | 'summarize' | 'resumetranscribe';
 
 export function DashboardClient() {
   const [user, setUser] = React.useState<SupabaseUser | null>(null);
@@ -87,7 +87,7 @@ export function DashboardClient() {
         if (result.success) {
             toast({
                 title: "Serviço Atualizado",
-                description: "Seu tipo de serviço foi alterado. Gere um novo QR Code para aplicar.",
+                description: "Funcionalidade trocada com sucesso.",
             });
         } else {
             toast({
@@ -170,7 +170,7 @@ export function DashboardClient() {
             Conecte seu WhatsApp
           </CardTitle>
           <CardDescription>
-            Escolha o serviço e leia o QR code para conectar sua conta. Se você alterar o serviço, precisa gerar um novo QR Code.
+            Escolha o serviço e leia o QR code para conectar sua conta.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
@@ -200,6 +200,17 @@ export function DashboardClient() {
                 <RadioGroupItem value="summarize" id="summarize" className="sr-only" />
                 <FileText className="mb-3 h-6 w-6" />
                 Resumo com IA
+              </Label>
+              <Label
+                htmlFor="resumetranscribe"
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
+              >
+                <RadioGroupItem value="resumetranscribe" id="resumetranscribe" className="sr-only" />
+                <div className="mb-3 flex gap-1">
+                  <MessageSquareText className="h-6 w-6" />
+                  <FileText className="h-6 w-6" />
+                </div>
+                Resumo + Transcrição
               </Label>
             </RadioGroup>
           </div>
