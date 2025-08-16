@@ -23,7 +23,7 @@ const signupSchema = z.object({
             return false;
         }
     }, "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)."),
-    serviceType: z.enum(['transcribe', 'summarize']),
+    plan: z.enum(['pessoal', 'business', 'exclusivo']),
 });
 
 export async function login(values: z.infer<typeof loginSchema>) {
@@ -66,7 +66,7 @@ export async function signup(values: z.infer<typeof signupSchema>) {
         return { error: errors.phone?.[0] ?? "Campos inválidos!" };
     }
 
-    const { email, password, phone, serviceType } = validatedFields.data;
+        const { email, password, phone, plan } = validatedFields.data;
     const cookieStore = await cookies();
     const supabase = createServerActionClient({ cookies: () => (cookieStore as any) });
 
@@ -90,16 +90,29 @@ export async function signup(values: z.infer<typeof signupSchema>) {
             }
         }
 
-        if (data.user) {
-            await createUser({
-                email: data.user.email!,
-                phone,
-                service_type: serviceType,
-                last_payment_at: new Date().toISOString(),
-            }, data.user.id);
+            if (data.user) {
+                await createUser({
+                    email: data.user.email!,
+                    phone,
+                    plan: plan,
+                    last_payment_at: new Date().toISOString(),
+                    service_type: 'transcribe', // Default service type
+                }, data.user.id);
 
             // Disparar o webhook para criar a instância de forma assíncrona
             triggerCreateInstanceWebhook(phone);
+
+            const checkoutResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/stripe/create-checkout-session`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan, userId: data.user.id }),
+            });
+            const checkoutData = await checkoutResponse.json();
+            if (checkoutData.url) {
+                redirect(checkoutData.url);
+            } else {
+                return { error: checkoutData.error || 'Não foi possível iniciar o pagamento.' };
+            }
         }
 
         return { success: "Conta criada com sucesso! Verifique seu email para confirmação." };
@@ -115,7 +128,7 @@ export async function logout() {
     redirect('/login');
 }
 
-export async function generateQrCode(data: { serviceType: 'transcribe' | 'summarize', phoneNumber: string }) {
+export async function generateQrCode(data: { serviceType: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto'; phoneNumber: string }) {
   console.log('Generating QR code for:', data);
   
   const isProduction = process.env.NODE_ENV === 'production';
@@ -147,7 +160,10 @@ export async function generateQrCode(data: { serviceType: 'transcribe' | 'summar
       throw new Error(`O serviço de QR Code falhou: ${response.statusText}`);
     }
 
-    const result = await response.json(); 
+    const result = await response.json();
+    if (result.success === false) {
+        return { success: false, error: 'Seu whatsapp já está conectado atualmente!' };
+    }
 
     if (!result.qrCodeImageBase64) {
         throw new Error('A resposta do webhook não continha um QR Code.');
@@ -177,13 +193,32 @@ export async function getUserProfile(userId: string) {
     }
 }
 
-export async function updateUserProfile(userId: string, updates: { service_type?: 'transcribe' | 'summarize' }) {
+export async function updateUserProfile(userId: string, updates: { plan?: 'pessoal' | 'business' | 'exclusivo', service_type?: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null }) {
     try {
         await updateUser(userId, updates);
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };
     }
+}
+
+export async function updateUserStatusAction(userId: string, status: 'active' | 'inactive') {
+  try {
+    await updateUserStatus(userId, status);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao atualizar status do usuário:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateUserMinutes(userId: string, minutes: number) {
+  try {
+    await updateUser(userId, { minutes_used: minutes });
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
 // Função não exportada para disparar o webhook

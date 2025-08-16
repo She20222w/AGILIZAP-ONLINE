@@ -13,9 +13,10 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { generateQrCode } from '@/app/actions';
+import { generateQrCode, updateUserStatusAction } from '@/app/actions';
 import {
   CreditCard,
   FileText,
@@ -28,20 +29,36 @@ import { Skeleton } from './ui/skeleton';
 import Image from 'next/image';
 import { UserProfile } from '@/services/user-service';
 import { getUserProfile, updateUserProfile } from '@/app/actions';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { createSupabaseClient } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
-type ServiceType = 'transcribe' | 'summarize';
+type ServiceType = 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto';
+
+type PlanType = 'pessoal' | 'business' | 'exclusivo';
 
 export function DashboardClient() {
   const [user, setUser] = React.useState<SupabaseUser | null>(null);
   const [userProfile, setUserProfile] = React.useState<UserProfile | null>(null);
   const [serviceType, setServiceType] = React.useState<ServiceType>('transcribe');
+const [plan, setPlan] = React.useState<PlanType>('pessoal');
   const [qrCode, setQrCode] = React.useState<string | null>(null);
+const [countdown, setCountdown] = React.useState<number | null>(null);
+const [status, setStatus] = React.useState<'active' | 'inactive' | null>(null);
+const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isUserLoading, setIsUserLoading] = React.useState(true);
   const { toast } = useToast();
   const supabase = createSupabaseClient();
+
+ // Plano e limites de minutos
+ const planLimits: Record<string, number> = { pessoal: 200, business: 400, exclusivo: 1000 };
+ const userPlan = userProfile?.plan as keyof typeof planLimits;
+ const planLimitMinutes = userPlan ? planLimits[userPlan] : 0;
+ const planLimitSeconds = planLimitMinutes * 60;
+ const secondsUsed = userProfile?.minutes_used || 0;
+ const minutesUsed = secondsUsed / 60;
+ const isLimitExceeded = secondsUsed >= planLimitSeconds;
 
   React.useEffect(() => {
     const getUser = async () => {
@@ -51,7 +68,10 @@ export function DashboardClient() {
         const result = await getUserProfile(user.id);
         if (result.success && result.data) {
             setUserProfile(result.data);
-            setServiceType(result.data.service_type);
+            setPlan(result.data.plan);
+            setServiceType(result.data.service_type ?? 'transcribe');
+            const initialStatus = result.data.status === 'active' ? 'active' : 'inactive';
+            setStatus(initialStatus);
         }
       } else {
         setUser(null);
@@ -62,14 +82,15 @@ export function DashboardClient() {
 
     getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       if (session?.user) {
         setUser(session.user);
         const result = await getUserProfile(session.user.id);
-        if (result.success && result.data) {
-            setUserProfile(result.data);
-            setServiceType(result.data.service_type);
-        }
+          if (result.success && result.data) {
+              setUserProfile(result.data);
+              setPlan(result.data.plan);
+              setServiceType(result.data.service_type ?? 'transcribe');
+          }
       } else {
         setUser(null);
         setUserProfile(null);
@@ -80,24 +101,18 @@ export function DashboardClient() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleServiceTypeChange = async (value: ServiceType) => {
+const handleServiceTypeChange = async (value: ServiceType) => {
     setServiceType(value);
-    if (user && userProfile) {
+    if (userProfile && user) {
         const result = await updateUserProfile(user.id, { service_type: value });
         if (result.success) {
-            toast({
-                title: "Serviço Atualizado",
-                description: "Seu tipo de serviço foi alterado. Gere um novo QR Code para aplicar.",
-            });
+            setUserProfile(prev => prev ? { ...prev, service_type: value } : prev);
+            toast({ title: 'Tipo de serviço atualizado!', description: `Tipo de serviço alterado para ${value}.` });
         } else {
-            toast({
-                title: "Erro",
-                description: result.error || "Não foi possível atualizar o tipo de serviço.",
-                variant: "destructive",
-            });
+            toast({ title: 'Erro', description: `Não foi possível atualizar o tipo de serviço. ${result.error}`, variant: 'destructive' });
         }
     }
-  }
+};
 
   const handleGenerateQr = async () => {
     if (!userProfile?.phone) {
@@ -124,6 +139,8 @@ export function DashboardClient() {
     setIsLoading(false);
     if (result.success && result.qrCode) {
       setQrCode(result.qrCode);
+      setCountdown(60);
+      setStatus(null);
       toast({
         title: 'QR Code Gerado!',
         description: 'Leia o código com seu aplicativo WhatsApp.',
@@ -136,9 +153,44 @@ export function DashboardClient() {
         variant: 'destructive',
       });
     }
-  };
-  
-  if (isUserLoading) {
+    };
+    
+        const verifyStatus = async () => {
+      if (!userProfile?.phone) {
+        return;
+      }
+      setIsVerifying(true);
+      try {
+        const response = await fetch('/api/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: userProfile.phone }),
+        });
+        const result = await response.json();
+        const newStatus = result.success ? 'active' : 'inactive';
+        setStatus(newStatus);
+        if (user) {
+          await updateUserStatusAction(user.id, newStatus);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+        setStatus('inactive');
+      } finally {
+        setIsVerifying(false);
+      }
+    };
+    
+    React.useEffect(() => {
+      if (countdown === null) return;
+      if (countdown === 0) {
+        verifyStatus();
+        return;
+      }
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }, [countdown]);
+    
+    if (isUserLoading) {
       return (
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             <Card className="lg:col-span-2">
@@ -170,7 +222,10 @@ export function DashboardClient() {
             Conecte seu WhatsApp
           </CardTitle>
           <CardDescription>
-            Escolha o serviço e leia o QR code para conectar sua conta. Se você alterar o serviço, precisa gerar um novo QR Code.
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Passo 1: Escolha o tipo de serviço que melhor atende você.</li>
+              <li>Passo 2: Clique em "Gerar QR Code" e escaneie o código com o seu celular, da mesma forma como se estivesse conectando ao WhatsApp Web.</li>
+            </ol>
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
@@ -183,7 +238,7 @@ export function DashboardClient() {
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
               value={serviceType}
               onValueChange={(value: ServiceType) => handleServiceTypeChange(value)}
-              disabled={isLoading}
+              disabled={isLoading || isUserLoading || isLimitExceeded}
             >
               <Label
                 htmlFor="transcribe"
@@ -201,6 +256,28 @@ export function DashboardClient() {
                 <FileText className="mb-3 h-6 w-6" />
                 Resumo com IA
               </Label>
+              <Label
+                htmlFor="resumetranscribe"
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
+              >
+                <RadioGroupItem value="resumetranscribe" id="resumetranscribe" className="sr-only" />
+                <div className="mb-3 flex gap-1">
+                  <MessageSquareText className="h-6 w-6" />
+                  <FileText className="h-6 w-6" />
+                </div>
+                Resumo + Transcrição
+              </Label>
+              <Label
+                htmlFor="auto"
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
+              >
+                <RadioGroupItem value="auto" id="auto" className="sr-only" />
+                <div className="mb-3 flex gap-1">
+                  <MessageSquareText className="h-6 w-6" />
+                  <FileText className="h-6 w-6" />
+                </div>
+                Modo Automático
+              </Label>
             </RadioGroup>
           </div>
 
@@ -213,7 +290,7 @@ export function DashboardClient() {
               </div>
             )}
             {!isLoading && qrCode && (
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-4">
                  <Image
                     src={qrCode}
                     alt="WhatsApp QR Code"
@@ -222,14 +299,23 @@ export function DashboardClient() {
                     className="rounded-lg border p-2 bg-white"
                   />
                  <p className="text-sm text-muted-foreground text-center max-w-xs">
-                    Abra o WhatsApp no seu celular, vá em Aparelhos Conectados e leia este código.
+                    Para conectar, abra o WhatsApp no seu celular, vá em "Aparelhos Conectados" e aponte a câmera para ler este código.
                  </p>
+                 {countdown !== null && countdown > 0 && (
+                   <p className="text-sm text-muted-foreground">Verificando em: {countdown}s</p>
+                 )}
+                 {countdown !== null && countdown === 0 && (
+                   <Button onClick={verifyStatus} disabled={isVerifying} variant="outline">
+                     {isVerifying && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                     Verificar novamente
+                   </Button>
+                 )}
               </div>
             )}
           </div>
         </CardContent>
-        <CardFooter>
-          <Button onClick={handleGenerateQr} disabled={isLoading || isUserLoading} size="lg" className="w-full sm:w-auto">
+        <CardFooter className="flex items-center justify-between">
+          <Button onClick={handleGenerateQr} disabled={isLoading || isUserLoading || isLimitExceeded} size="lg" className="w-full sm:w-auto">
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -237,6 +323,8 @@ export function DashboardClient() {
             )}
             {qrCode ? 'Gerar Novo QR Code' : 'Gerar QR Code'}
           </Button>
+          {status === 'active' && <Badge variant="default">Ativo</Badge>}
+          {status === 'inactive' && <Badge variant="destructive">Offline</Badge>}
         </CardFooter>
       </Card>
 
@@ -250,11 +338,45 @@ export function DashboardClient() {
             Gerencie sua assinatura e detalhes de pagamento.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Seu plano atual está ativo. Para gerenciar sua assinatura, acesse o portal do nosso parceiro de pagamentos.
-          </p>
-        </CardContent>
+        <CardContent className="grid gap-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium">{minutesUsed.toFixed(2)} / {planLimitMinutes.toFixed(2)} minutos</span>
+            <Badge variant={isLimitExceeded ? 'destructive' : 'default'}>
+              {isLimitExceeded ? 'Limite Excedido' : 'Dentro do Limite'}
+            </Badge>
+          </div>
+          <div>
+            <Label className="text-base font-medium">Plano</Label>
+            <RadioGroup
+              className="grid grid-cols-1 gap-2 mt-2"
+              value={plan}
+              onValueChange={async (value: PlanType) => {
+                setPlan(value);
+                const result = await updateUserProfile(user!.id, { plan: value });
+                if (result.success) {
+                  setUserProfile(prev => prev ? { ...prev, plan: value } : prev);
+                  toast({ title: 'Plano atualizado!', description: `Seu plano foi alterado para ${value}.` });
+                } else {
+                  toast({ title: 'Erro', description: `Não foi possível atualizar o plano. ${result.error}`, variant: 'destructive' });
+                }
+              }}
+              disabled={isLoading || isUserLoading}
+            >
+              <Label htmlFor="pessoal" className="flex items-center space-x-2">
+                <RadioGroupItem value="pessoal" id="pessoal" className="sr-only" />
+                <span>Pessoal - R$9,90 - 200 minutos</span>
+              </Label>
+              <Label htmlFor="business" className="flex items-center space-x-2">
+                <RadioGroupItem value="business" id="business" className="sr-only" />
+                <span>Business - R$14,99 - 400 minutos</span>
+              </Label>
+              <Label htmlFor="exclusivo" className="flex items-center space-x-2">
+                <RadioGroupItem value="exclusivo" id="exclusivo" className="sr-only" />
+                <span>Exclusivo - R$24,99 - 1000 minutos</span>
+              </Label>
+            </RadioGroup>
+          </div>
+                  </CardContent>
         <CardFooter>
           <Button asChild className="w-full">
             <Link href={process.env.NEXT_PUBLIC_WHATSAPP_ADMIN_LINK || "https://wa.me"} target="_blank">

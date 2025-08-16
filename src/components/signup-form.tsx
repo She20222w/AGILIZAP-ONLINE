@@ -28,21 +28,21 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { createSupabaseClient } from '@/lib/supabase';
 
 
-const formSchema = z.object({
-  email: z.string().email({ message: 'Por favor, insira um email válido.' }),
-  password: z.string().min(8, { message: 'A senha deve ter pelo menos 8 caracteres.' }),
-  phone: z.string().refine(phone => {
-        try {
-            const parsed = parsePhoneNumberFromString(phone);
-            return !!parsed && parsed.isValid();
-        } catch {
-            return false;
-        }
-    }, "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)."),
-  serviceType: z.enum(['transcribe', 'summarize'], { required_error: 'Por favor, selecione um tipo de serviço.' }),
-});
+  const formSchema = z.object({
+    email: z.string().email({ message: 'Por favor, insira um email válido.' }),
+    password: z.string().min(8, { message: 'A senha deve ter pelo menos 8 caracteres.' }),
+    phone: z.string().refine(phone => {
+          try {
+              const parsed = parsePhoneNumberFromString(phone);
+              return !!parsed && parsed.isValid();
+          } catch {
+              return false;
+          }
+      }, "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)."),
+    plan: z.enum(['pessoal', 'business', 'exclusivo'], { required_error: 'Por favor, selecione um plano.' }),
+  });
 
-type ServiceType = 'transcribe' | 'summarize';
+type PlanType = 'pessoal' | 'business' | 'exclusivo';
 
 export function SignupForm() {
   const router = useRouter();
@@ -56,7 +56,7 @@ export function SignupForm() {
       email: '',
       password: '',
       phone: '',
-      serviceType: 'transcribe',
+      plan: 'pessoal',
     },
   });
 
@@ -125,12 +125,12 @@ export function SignupForm() {
             />
              <FormField
               control={form.control}
-              name="serviceType"
+              name="plan"
               render={({ field }) => (
                 <FormItem className="space-y-3">
-                  <FormLabel>Serviço Padrão</FormLabel>
+                  <FormLabel>Plano</FormLabel>
                    <p className="text-sm text-muted-foreground">
-                    Escolha seu serviço preferido. Você pode alterar isso mais tarde.
+                    Escolha um plano. Você pode alterar isso mais tarde.
                   </p>
                   <FormControl>
                     <RadioGroup
@@ -141,26 +141,42 @@ export function SignupForm() {
                     >
                       <FormItem>
                          <Label
-                          htmlFor="transcribe"
+                          htmlFor="pessoal"
                           className="flex flex-col items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary"
                         >
                            <FormControl>
-                            <RadioGroupItem value="transcribe" id="transcribe" className="sr-only" />
+                            <RadioGroupItem value="pessoal" id="pessoal" className="sr-only" />
                            </FormControl>
                           <MessageSquareText className="mb-3 h-6 w-6" />
-                          Transcrição Completa
+                          Pessoal – R$9,90 – 200 min
                         </Label>
                       </FormItem>
                       <FormItem>
                          <Label
-                          htmlFor="summarize"
+                          htmlFor="business"
                           className="flex flex-col items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary"
                         >
                           <FormControl>
-                            <RadioGroupItem value="summarize" id="summarize" className="sr-only" />
+                            <RadioGroupItem value="business" id="business" className="sr-only" />
                           </FormControl>
                           <FileText className="mb-3 h-6 w-6" />
-                          Resumo com IA
+                          Business – R$14,99 – 400 min
+                        </Label>
+                      </FormItem>
+
+                      <FormItem>
+                        <Label
+                          htmlFor="exclusivo"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary"
+                        >
+                          <FormControl>
+                            <RadioGroupItem value="exclusivo" id="exclusivo" className="sr-only" />
+                          </FormControl>
+                          <div className="mb-3 flex gap-1">
+                            <MessageSquareText className="h-6 w-6" />
+                            <FileText className="h-6 w-6" />
+                          </div>
+                          Exclusivo – R$24,99 – 1000 min
                         </Label>
                       </FormItem>
                     </RadioGroup>

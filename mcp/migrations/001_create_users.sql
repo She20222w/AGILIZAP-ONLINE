@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   phone TEXT NOT NULL,
-  service_type TEXT NOT NULL CHECK (service_type IN ('transcribe', 'summarize')),
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'reseller')),
+  service_type TEXT NOT NULL CHECK (service_type IN ('transcribe', 'summarize', 'resumetranscribe')),
+  status TEXT NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'reseller')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_payment_at TIMESTAMPTZ DEFAULT NOW()
 );

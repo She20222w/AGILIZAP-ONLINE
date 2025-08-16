@@ -11,7 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { getUserById } from '@/services/user-service';
+import { getUserById, updateUserMinutes } from '@/services/user-service';
 
 const TranscribeAudioInputSchema = z.object({
   audioDataUri: z
@@ -58,6 +58,9 @@ const transcribeAudioFlow = ai.defineFlow(
     }
     
     // Check if subscription is expired (30 days)
+    if (!user.last_payment_at) {
+      throw new Error('User has no payment date.');
+    }
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     if (new Date(user.last_payment_at) < thirtyDaysAgo) {
@@ -66,6 +69,8 @@ const transcribeAudioFlow = ai.defineFlow(
     }
 
     const {output} = await transcribeAudioPrompt(input);
+    // Update minutes used (increment by 1)
+    await updateUserMinutes(input.userId, user.minutes_used + 1);
     return output!;
   }
 );

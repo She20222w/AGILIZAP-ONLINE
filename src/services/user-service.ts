@@ -5,7 +5,7 @@ export type UserProfile = Database['public']['Tables']['users']['Row'] & {
   uid: string; // Alias for id to maintain compatibility
 };
 
-export async function createUser(user: Omit<UserProfile, 'id' | 'uid' | 'status' | 'created_at'>, uid: string) {
+export async function createUser(user: Omit<UserProfile, 'id' | 'uid' | 'status' | 'created_at' | 'plan' | 'minutes_used' | 'service_type'> & { plan: 'pessoal' | 'business' | 'exclusivo', service_type: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null }, uid: string) {
   // Check if there are any users already to determine if this should be the first admin
   const { data: existingUsers, error: countError } = await supabaseAdmin
     .from('users')
@@ -16,7 +16,7 @@ export async function createUser(user: Omit<UserProfile, 'id' | 'uid' | 'status'
     throw new Error(`Error checking existing users: ${countError.message}`);
   }
 
-  let status: 'active' | 'reseller' = 'active';
+  let status: 'inactive' | 'reseller' = 'inactive';
   // If no users exist, the first one to sign up is the admin (reseller)
   if (!existingUsers || existingUsers.length === 0) {
     status = 'reseller';
@@ -24,10 +24,12 @@ export async function createUser(user: Omit<UserProfile, 'id' | 'uid' | 'status'
 
   const { data, error } = await supabaseAdmin
     .from('users')
-    .insert({
+      .insert({
       id: uid,
       email: user.email,
       phone: user.phone,
+      plan: user.plan,
+      minutes_used: 0,
       service_type: user.service_type,
       status,
       created_at: new Date().toISOString(),
@@ -101,19 +103,24 @@ export async function updateUserPayment(uid: string) {
   }
 }
 
-export async function updateUser(uid: string, updates: Partial<Pick<UserProfile, 'service_type' | 'phone' | 'email'>>) {
-  const updateData: any = {};
-  
-  if (updates.service_type) updateData.service_type = updates.service_type;
-  if (updates.phone) updateData.phone = updates.phone;
-  if (updates.email) updateData.email = updates.email;
-
+export async function updateUser(uid: string, updates: { plan?: 'pessoal' | 'business' | 'exclusivo', phone?: string, email?: string, minutes_used?: number, service_type?: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null }) {
   const { error } = await supabaseAdmin
     .from('users')
-    .update(updateData)
+    .update(updates)
     .eq('id', uid);
 
   if (error) {
     throw new Error(`Error updating user: ${error.message}`);
+  }
+}
+
+export async function updateUserMinutes(uid: string, minutes: number) {
+  const { error } = await supabaseAdmin
+    .from('users')
+    .update({ minutes_used: minutes })
+    .eq('id', uid);
+
+  if (error) {
+    throw new Error(`Error updating user minutes: ${error.message}`);
   }
 }
