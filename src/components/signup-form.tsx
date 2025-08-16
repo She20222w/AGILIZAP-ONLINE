@@ -142,41 +142,68 @@ export function SignupForm() {
                       <FormItem>
                          <Label
                           htmlFor="pessoal"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary"
+                          className="flex items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary cursor-pointer"
                         >
                            <FormControl>
                             <RadioGroupItem value="pessoal" id="pessoal" className="sr-only" />
                            </FormControl>
-                          <MessageSquareText className="mb-3 h-6 w-6" />
-                          Pessoal – R$9,90 – 200 min
+                          <div className="flex items-center gap-3">
+                            <MessageSquareText className="h-6 w-6" />
+                            <div>
+                              <div className="font-medium">Pessoal</div>
+                              <div className="text-sm opacity-80">200 minutos</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold">$9.90</div>
+                            <div className="text-xs opacity-80">/mês</div>
+                          </div>
                         </Label>
                       </FormItem>
                       <FormItem>
                          <Label
                           htmlFor="business"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary"
+                          className="flex items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary cursor-pointer"
                         >
                           <FormControl>
                             <RadioGroupItem value="business" id="business" className="sr-only" />
                           </FormControl>
-                          <FileText className="mb-3 h-6 w-6" />
-                          Business – R$14,99 – 400 min
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-6 w-6" />
+                            <div>
+                              <div className="font-medium">Business</div>
+                              <div className="text-sm opacity-80">400 minutos</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold">$14.90</div>
+                            <div className="text-xs opacity-80">/mês</div>
+                          </div>
                         </Label>
                       </FormItem>
 
                       <FormItem>
                         <Label
                           htmlFor="exclusivo"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary"
+                          className="flex items-center justify-between rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary cursor-pointer"
                         >
                           <FormControl>
                             <RadioGroupItem value="exclusivo" id="exclusivo" className="sr-only" />
                           </FormControl>
-                          <div className="mb-3 flex gap-1">
-                            <MessageSquareText className="h-6 w-6" />
-                            <FileText className="h-6 w-6" />
+                          <div className="flex items-center gap-3">
+                            <div className="flex gap-1">
+                              <MessageSquareText className="h-6 w-6" />
+                              <FileText className="h-6 w-6" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Exclusivo</div>
+                              <div className="text-sm opacity-80">1000 minutos</div>
+                            </div>
                           </div>
-                          Exclusivo – R$24,99 – 1000 min
+                          <div className="text-right">
+                            <div className="font-bold">$24.90</div>
+                            <div className="text-xs opacity-80">/mês</div>
+                          </div>
                         </Label>
                       </FormItem>
                     </RadioGroup>

@@ -32,6 +32,7 @@ import { getUserProfile, updateUserProfile } from '@/app/actions';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { createSupabaseClient } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { getProductByPriceId } from '@/stripe-config';
 
 type ServiceType = 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto';
 
@@ -48,6 +49,7 @@ const [status, setStatus] = React.useState<'active' | 'inactive' | null>(null);
 const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isUserLoading, setIsUserLoading] = React.useState(true);
+  const [subscriptionData, setSubscriptionData] = React.useState<any>(null);
   const { toast } = useToast();
   const supabase = createSupabaseClient();
 
@@ -72,6 +74,13 @@ const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
             setServiceType(result.data.service_type ?? 'transcribe');
             const initialStatus = result.data.status === 'active' ? 'active' : 'inactive';
             setStatus(initialStatus);
+            
+            // Fetch subscription data
+            const { data: subscription } = await supabase
+              .from('stripe_user_subscriptions')
+              .select('*')
+              .maybeSingle();
+            setSubscriptionData(subscription);
         }
       } else {
         setUser(null);
@@ -90,6 +99,13 @@ const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
               setUserProfile(result.data);
               setPlan(result.data.plan);
               setServiceType(result.data.service_type ?? 'transcribe');
+              
+              // Fetch subscription data
+              const { data: subscription } = await supabase
+                .from('stripe_user_subscriptions')
+                .select('*')
+                .maybeSingle();
+              setSubscriptionData(subscription);
           }
       } else {
         setUser(null);
@@ -189,6 +205,8 @@ const handleServiceTypeChange = async (value: ServiceType) => {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }, [countdown]);
+    
+    const currentProduct = subscriptionData?.price_id ? getProductByPriceId(subscriptionData.price_id) : null;
     
     if (isUserLoading) {
       return (
@@ -339,6 +357,16 @@ const handleServiceTypeChange = async (value: ServiceType) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {currentProduct && (
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Plano Atual:</span>
+                <Badge variant="default">{currentProduct.name}</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">{currentProduct.description}</p>
+            </div>
+          )}
+          
           <div className="flex justify-between items-center mb-2">
             <span className="font-medium">{minutesUsed.toFixed(2)} / {planLimitMinutes.toFixed(2)} minutos</span>
             <Badge variant={isLimitExceeded ? 'destructive' : 'default'}>
@@ -362,17 +390,38 @@ const handleServiceTypeChange = async (value: ServiceType) => {
               }}
               disabled={isLoading || isUserLoading}
             >
-              <Label htmlFor="pessoal" className="flex items-center space-x-2">
+              <Label htmlFor="pessoal" className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
                 <RadioGroupItem value="pessoal" id="pessoal" className="sr-only" />
-                <span>Pessoal - R$9,90 - 200 minutos</span>
+                <div>
+                  <div className="font-medium">Pessoal</div>
+                  <div className="text-sm text-muted-foreground">200 minutos</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold">$9.90</div>
+                  <div className="text-xs text-muted-foreground">/mês</div>
+                </div>
               </Label>
-              <Label htmlFor="business" className="flex items-center space-x-2">
+              <Label htmlFor="business" className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
                 <RadioGroupItem value="business" id="business" className="sr-only" />
-                <span>Business - R$14,99 - 400 minutos</span>
+                <div>
+                  <div className="font-medium">Business</div>
+                  <div className="text-sm text-muted-foreground">400 minutos</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold">$14.90</div>
+                  <div className="text-xs text-muted-foreground">/mês</div>
+                </div>
               </Label>
-              <Label htmlFor="exclusivo" className="flex items-center space-x-2">
+              <Label htmlFor="exclusivo" className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
                 <RadioGroupItem value="exclusivo" id="exclusivo" className="sr-only" />
-                <span>Exclusivo - R$24,99 - 1000 minutos</span>
+                <div>
+                  <div className="font-medium">Exclusivo</div>
+                  <div className="text-sm text-muted-foreground">1000 minutos</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold">$24.90</div>
+                  <div className="text-xs text-muted-foreground">/mês</div>
+                </div>
               </Label>
             </RadioGroup>
           </div>

@@ -1,30 +1,46 @@
 import { NextResponse } from 'next/server';
-import { stripe, PRICE_IDS, PlanType } from '@/lib/stripe';
+import { createSupabaseServerClient } from '@/lib/supabase';
+import { getProductByPlan } from '@/stripe-config';
 
 export async function POST(request: Request) {
   try {
-    const { plan, userId } = (await request.json()) as { plan: PlanType; userId: string };
+    const { plan, userId } = (await request.json()) as { plan: 'pessoal' | 'business' | 'exclusivo'; userId: string };
 
-    if (!PRICE_IDS[plan]) {
+    const product = getProductByPlan(plan);
+    if (!product) {
       return NextResponse.json({ error: 'Plano inválido.' }, { status: 400 });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: PRICE_IDS[plan],
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      client_reference_id: userId,
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/signup?canceled=true`,
-      metadata: { plan, userId },
+    const supabase = createSupabaseServerClient();
+    
+    // Get the user's session to pass the JWT token
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      return NextResponse.json({ error: 'Usuário não autenticado.' }, { status: 401 });
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stripe-checkout`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        price_id: product.priceId,
+        mode: product.mode,
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/signup?canceled=true`,
+      }),
     });
 
-    return NextResponse.json({ url: session.url });
+    const result = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json({ error: result.error || 'Erro ao criar sessão de checkout.' }, { status: response.status });
+    }
+
+    return NextResponse.json({ url: result.url });
   } catch (error) {
     console.error('Erro ao criar sessão de checkout:', error);
     return NextResponse.json({ error: 'Erro ao criar sessão de checkout.' }, { status: 500 });

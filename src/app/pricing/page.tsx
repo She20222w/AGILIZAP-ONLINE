@@ -6,10 +6,22 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Check, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { STRIPE_PRODUCTS } from "@/stripe-config";
 
 export default function PricingPage() {
     const [currency, setCurrency] = useState<'USD' | 'BRL'>('USD');
-    const prices = { pessoal: 9.90, business: 14.99, exclusivo: 24.99 };
+    
+    // Get prices from Stripe products
+    const pessoalProduct = STRIPE_PRODUCTS.find(p => p.priceId === 'price_1RwZ6VLhqNLrDL71kC57xXvR');
+    const businessProduct = STRIPE_PRODUCTS.find(p => p.priceId === 'price_1RwZ8jLhqNLrDL713SLzYz4i');
+    const exclusivoProduct = STRIPE_PRODUCTS.find(p => p.priceId === 'price_1RwZAoLhqNLrDL7116BMcELR');
+    
+    const prices = { 
+      pessoal: pessoalProduct?.price || 9.90, 
+      business: businessProduct?.price || 14.90, 
+      exclusivo: exclusivoProduct?.price || 24.90 
+    };
+    
     const conversionRate = 6;
     const formatPrice = (amount: number) => {
         const value = currency === 'BRL' ? amount * conversionRate : amount;
@@ -84,7 +96,7 @@ export default function PricingPage() {
                             <Card className="flex flex-col border-border/50 hover:border-accent/50 transition-colors">
                                 <CardHeader>
                                     <CardTitle>Pessoal</CardTitle>
-                                    <CardDescription>Para usuários individuais que desejam economizar tempo.</CardDescription>
+                                    <CardDescription>{pessoalProduct?.description || 'Para usuários individuais que desejam economizar tempo.'}</CardDescription>
                                     <div>
                                         <span className="text-4xl font-bold">{formatPrice(prices.pessoal)}</span>
                                         <span className="text-muted-foreground">/mês</span>
@@ -109,7 +121,7 @@ export default function PricingPage() {
                             <Card className="flex flex-col border-primary shadow-lg shadow-primary/20">
                                  <CardHeader>
                                     <CardTitle>Business</CardTitle>
-                                    <CardDescription>Para pequenas equipes e profissionais.</CardDescription>
+                                    <CardDescription>{businessProduct?.description || 'Para pequenas equipes e profissionais.'}</CardDescription>
                                     <div>
                                         <span className="text-4xl font-bold">{formatPrice(prices.business)}</span>
                                         <span className="text-muted-foreground">/mês</span>
@@ -134,7 +146,7 @@ export default function PricingPage() {
                             <Card className="flex flex-col border-border/50 hover:border-accent/50 transition-colors">
                                  <CardHeader>
                                     <CardTitle>Exclusivo</CardTitle>
-                                    <CardDescription>Para agências e empreendedores que desejam oferecer este serviço aos seus clientes.</CardDescription>
+                                    <CardDescription>{exclusivoProduct?.description || 'Para agências e empreendedores que desejam oferecer este serviço aos seus clientes.'}</CardDescription>
                                      <div>
                                         <span className="text-4xl font-bold">{formatPrice(prices.exclusivo)}</span>
                                         <span className="text-muted-foreground">/mês</span>
