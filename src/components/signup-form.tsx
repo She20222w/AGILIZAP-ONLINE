@@ -250,6 +250,14 @@ function onSubmit(values: z.infer<typeof formSchema>) {
               )}
             />
           </CardContent>
+          <div className="px-6">
+            <h3 className="text-lg font-semibold">Todos os planos incluem:</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              <li>Resumo dos áudios com IA</li>
+              <li>Transcrição de áudios</li>
+              <li>Modo inteligente para alternar entre resumo e transcrição</li>
+            </ul>
+          </div>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
