@@ -1,4 +1,3 @@
-/// <reference lib="deno" />
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
@@ -8,7 +7,7 @@ const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 const stripe = new Stripe(stripeSecret, {
   apiVersion: '2025-07-30.basil',
   appInfo: {
-    name: 'Bolt Integration',
+    name: 'AgilyZap',
     version: '1.0.0',
   },
 });
@@ -92,6 +91,17 @@ async function handleEvent(event: Stripe.Event) {
       // Subscription completed: create user and instance
       const metadata = (stripeData as Stripe.Checkout.Session).metadata as Record<string,string>;
       const { userId, phone, plan } = metadata;
+      // Insere ou atualiza registro em stripe_customers
+      const { error: custErr } = await supabase
+        .from('stripe_customers')
+        .upsert({ user_id: userId, customer_id: customerId }, { onConflict: 'user_id' });
+      if (custErr) console.error('Error upserting stripe customer:', custErr);
+      // Sincroniza dados de assinatura do Stripe
+      try {
+        await syncCustomerFromStripe(customerId);
+      } catch (syncErr) {
+        console.error('Error syncing subscription:', syncErr);
+      }
       const { error: upsertError } = await supabase.from('users').upsert({
         id: userId,
         email: (stripeData as Stripe.Checkout.Session).customer_details?.email ?? null,

@@ -50,7 +50,24 @@ export function LoginForm() {
           title: 'Sucesso',
           description: result.success,
         });
-        router.push('/dashboard');
+        // Verificar assinatura do usuário
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('stripe_customer_id, status')
+            .eq('id', authUser.id)
+            .maybeSingle();
+          if (profile?.stripe_customer_id && profile.status === 'active') {
+            router.push('/dashboard');
+          } else {
+            router.push('/pricing');
+          }
+        } else {
+          router.push('/dashboard');
+        }
       } else if (result.error) {
         toast({
           title: 'Erro',

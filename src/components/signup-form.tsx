@@ -19,7 +19,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { signup } from '@/app/actions';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, MessageSquareText, FileText } from 'lucide-react';
@@ -61,22 +60,60 @@ export function SignupForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    startTransition(async () => {
-      const result = await signup(values);
-
-      if (result?.checkoutUrl) {
-        // Redireciona o cliente para a URL de checkout do Stripe
-        window.location.href = result.checkoutUrl;
-      } else if (result?.error) {
+function onSubmit(values: z.infer<typeof formSchema>) {
+  startTransition(async () => {
+    // Cria usuário no Supabase Auth
+    const supabaseClient = createSupabaseClient();
+    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      },
+    });
+    let user = signUpData?.user ?? null;
+    if (signUpError) {
+      // Usuário já existe, tenta login
+      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+      if (signInError) {
         toast({
           title: 'Erro no Cadastro',
-          description: result.error,
+          description: signInError.message,
           variant: 'destructive',
         });
+        return;
       }
+      user = signInData.user;
+    }
+    if (!user) {
+      toast({
+        title: 'Erro no Cadastro',
+        description: 'Não foi possível obter dados do usuário.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    // Inicia sessão de checkout no Stripe
+    const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: values.plan, userId: user.id, phone: values.phone }),
     });
-  }
+    const checkoutData = await checkoutRes.json();
+    if (checkoutData.url) {
+      window.location.href = checkoutData.url;
+    } else {
+      toast({
+        title: 'Erro no Pagamento',
+        description: checkoutData.error || 'Não foi possível iniciar o pagamento.',
+        variant: 'destructive',
+      });
+    }
+  });
+}
 
   return (
     <Card className="w-full max-w-sm">

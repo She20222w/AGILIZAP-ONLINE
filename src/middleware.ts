@@ -65,18 +65,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect authenticated users with subscription away from auth pages
+  // Redirect authenticated users away from auth pages
   if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') && session) {
-    // Only redirect if user has an active subscription
-    const { data: subscription } = await supabase
-      .from('stripe_user_subscriptions')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .maybeSingle();
-    if (subscription) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    // If no subscription, allow access to login/signup
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return response
