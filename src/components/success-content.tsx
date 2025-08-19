@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Zap } from 'lucide-react';
 import Link from 'next/link';
-import { createSupabaseClient } from '@/lib/supabase';
-import { getProductByPriceId } from '@/stripe-config';
+import { createSupabaseClient } from '@/lib/supabase-client';
+import { getProductByPriceId, getProductByPlan } from '@/stripe-config';
 
 export function SuccessContent() {
   const searchParams = useSearchParams();
@@ -26,13 +26,21 @@ export function SuccessContent() {
       return;
     }
 
+    // Demo fallback for TEST_SESSION_ID without real webhook data
+    if (sessionId === 'TEST_SESSION_ID') {
+      const demoProduct = getProductByPlan('pessoal');
+      setSubscriptionData({ price_id: demoProduct?.priceId });
+      setIsLoading(false);
+      return;
+    }
+
     const fetchSubscriptionData = async () => {
       try {
         // Wait a bit for webhook processing
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         const { data: subscription, error: subError } = await supabase
-          .from('stripe_user_subscriptions')
+          .from('stripe_subscriptions')
           .select('*')
           .maybeSingle();
 
@@ -53,6 +61,15 @@ export function SuccessContent() {
 
     fetchSubscriptionData();
   }, [sessionId, supabase]);
+
+  useEffect(() => {
+    if (!isLoading && !error) {
+      const timer = setTimeout(() => {
+        router.push('/dashboard');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, error, router]);
 
   if (isLoading) {
     return (
@@ -94,7 +111,7 @@ export function SuccessContent() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="flex flex-col items-center justify-center gap-4 mb-8">
         <Zap className="h-12 w-12 text-primary" />
-        <h1 className="text-3xl font-bold font-headline">Agilizap</h1>
+        <h1 className="text-3xl font-bold font-headline">AgilyZap</h1>
       </div>
       
       <Card className="w-full max-w-md">

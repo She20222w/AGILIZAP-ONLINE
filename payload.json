@@ -1,0 +1,16 @@
+{
+  "type": "checkout.session.completed",
+  "data": {
+    "object": {
+      "id": "cs_test_123",
+      "mode": "subscription",
+      "payment_status": "paid",
+      "customer": "cus_test_123",
+      "metadata": {
+        "userId": "test-user-id",
+        "phone": "+5511999999999",
+        "plan": "pessoal"
+      }
+    }
+  }
+}

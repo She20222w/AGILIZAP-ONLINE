@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -25,10 +24,11 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, MessageSquareText, FileText } from 'lucide-react';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createSupabaseClient } from '@/lib/supabase-client';
 
 
   const formSchema = z.object({
+    name: z.string().min(1, { message: 'Por favor, insira seu nome.' }),
     email: z.string().email({ message: 'Por favor, insira um email válido.' }),
     password: z.string().min(8, { message: 'A senha deve ter pelo menos 8 caracteres.' }),
     phone: z.string().refine(phone => {
@@ -53,6 +53,7 @@ export function SignupForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: '',
       email: '',
       password: '',
       phone: '',
@@ -63,13 +64,11 @@ export function SignupForm() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     startTransition(async () => {
       const result = await signup(values);
-      if (result.success) {
-        toast({
-          title: 'Conta Criada',
-          description: result.success,
-        });
-        router.push('/dashboard');
-      } else if (result.error) {
+
+      if (result?.checkoutUrl) {
+        // Redireciona o cliente para a URL de checkout do Stripe
+        window.location.href = result.checkoutUrl;
+      } else if (result?.error) {
         toast({
           title: 'Erro no Cadastro',
           description: result.error,
@@ -84,6 +83,19 @@ export function SignupForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="grid gap-4 pt-6">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Seu nome completo" {...field} disabled={isPending} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="email"
@@ -147,12 +159,9 @@ export function SignupForm() {
                            <FormControl>
                             <RadioGroupItem value="pessoal" id="pessoal" className="sr-only" />
                            </FormControl>
-                          <div className="flex items-center gap-3">
-                            <MessageSquareText className="h-6 w-6" />
-                            <div>
-                              <div className="font-medium">Pessoal</div>
-                              <div className="text-sm opacity-80">200 minutos</div>
-                            </div>
+                          <div>
+                            <div className="font-medium">Pessoal</div>
+                            <div className="text-sm opacity-80">200 minutos</div>
                           </div>
                           <div className="text-right">
                             <div className="font-bold">$9.90</div>
@@ -168,12 +177,9 @@ export function SignupForm() {
                           <FormControl>
                             <RadioGroupItem value="business" id="business" className="sr-only" />
                           </FormControl>
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-6 w-6" />
-                            <div>
-                              <div className="font-medium">Business</div>
-                              <div className="text-sm opacity-80">400 minutos</div>
-                            </div>
+                          <div>
+                            <div className="font-medium">Business</div>
+                            <div className="text-sm opacity-80">400 minutos</div>
                           </div>
                           <div className="text-right">
                             <div className="font-bold">$14.90</div>
@@ -190,15 +196,9 @@ export function SignupForm() {
                           <FormControl>
                             <RadioGroupItem value="exclusivo" id="exclusivo" className="sr-only" />
                           </FormControl>
-                          <div className="flex items-center gap-3">
-                            <div className="flex gap-1">
-                              <MessageSquareText className="h-6 w-6" />
-                              <FileText className="h-6 w-6" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Exclusivo</div>
-                              <div className="text-sm opacity-80">1000 minutos</div>
-                            </div>
+                          <div>
+                            <div className="font-medium">Exclusivo</div>
+                            <div className="text-sm opacity-80">1000 minutos</div>
                           </div>
                           <div className="text-right">
                             <div className="font-bold">$24.90</div>

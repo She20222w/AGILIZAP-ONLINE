@@ -4,7 +4,7 @@ import favicon from './favicon.ico';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Agilizap',
+  title: 'AgilyZap',
   description: 'Transcribe and summarize your WhatsApp audio messages automatically.',
 icons: {
   icon: favicon.src,

@@ -3,7 +3,7 @@
 import BackButton from "@/components/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { STRIPE_PRODUCTS } from "@/stripe-config";
@@ -40,7 +40,7 @@ export default function PricingPage() {
                         className="flex items-center gap-2 text-lg font-semibold"
                     >
                         <Zap className="h-6 w-6 text-primary" />
-                        <span className="font-headline font-bold">Agilizap</span>
+                        <span className="font-headline font-bold">AgilyZap</span>
                     </Link>
                 </div>
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
@@ -103,14 +103,21 @@ export default function PricingPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="grid gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-primary" />
-                                        <span>200 minutos de transcrição de audio por mês</span>
+                                    <div>
+                                                                                <span>200 minutos de transcrição de audio por mês</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-primary" />
-                                        <span>Resumo dos audios com IA</span>
-                                    </div>
+<div >
+    
+    <span>Resumo dos audios com IA</span>
+</div>
+<div >
+    
+    <span>Transcrição de áudios</span>
+</div>
+<div >
+    
+    <span>Modo inteligente para alternar entre resumo e transcrição</span>
+</div>
                                 </CardContent>
                                 <CardFooter className="mt-auto">
                                     <Button className="w-full" asChild>
@@ -128,14 +135,22 @@ export default function PricingPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="grid gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-primary" />
+                                    <div >
+                                        
                                         <span>400 minutos de transcrição de audio por mês</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-primary" />
-                                        <span>Resumo dos audios com IA</span>
-                                    </div>
+<div >
+    
+    <span>Resumo dos audios com IA</span>
+</div>
+<div >
+    
+    <span>Transcrição de áudios</span>
+</div>
+<div >
+    
+    <span>Modo inteligente para alternar entre resumo e transcrição</span>
+</div>
                                 </CardContent>
                                 <CardFooter className="mt-auto">
                                     <Button className="w-full" asChild>
@@ -153,20 +168,35 @@ export default function PricingPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="grid gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-primary" />
+                                    <div >
+                                        
                                         <span>1000 minutos de transcrição de audio por mês</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-primary" />
-                                        <span>Resumo dos audios com IA</span>
-                                    </div>
+<div >
+    
+    <span>Resumo dos audios com IA</span>
+</div>
+<div >
+    
+    <span>Transcrição de áudios</span>
+</div>
+<div >
+    
+    <span>Modo inteligente para alternar entre resumo e transcrição</span>
+</div>
                                 </CardContent>
-                                <CardFooter className="mt-auto">
-                                    <Button className="w-full" variant="outline" asChild>
-                                        <Link href="/contact">Entre em Contato</Link>
-                                    </Button>
-                                </CardFooter>
+            <CardFooter className="mt-auto">
+                <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                        const text = encodeURIComponent('Olá, quero entrar em contato para o modo exclusivo do AgilyZap.');
+                        window.open(`https://wa.me/5599981788458?text=${text}`, '_blank');
+                    }}
+                >
+                    Entre em Contato
+                </Button>
+            </CardFooter>
                             </Card>
                         </div>
                     </div>

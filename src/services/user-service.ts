@@ -3,9 +3,11 @@ import type { Database } from '@/lib/supabase';
 
 export type UserProfile = Database['public']['Tables']['users']['Row'] & {
   uid: string; // Alias for id to maintain compatibility
+  stripe_customer_id?: string | null;
+  name: string;
 };
 
-export async function createUser(user: Omit<UserProfile, 'id' | 'uid' | 'status' | 'created_at' | 'plan' | 'minutes_used' | 'service_type'> & { plan: 'pessoal' | 'business' | 'exclusivo', service_type: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null }, uid: string) {
+export async function createUser(user: Omit<UserProfile, 'id' | 'uid' | 'status' | 'created_at' | 'plan' | 'minutes_used' | 'service_type'> & { plan: 'pessoal' | 'business' | 'exclusivo', service_type: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null, name: string }, uid: string) {
   // Check if there are any users already to determine if this should be the first admin
   const { data: existingUsers, error: countError } = await supabaseAdmin
     .from('users')
@@ -28,6 +30,7 @@ export async function createUser(user: Omit<UserProfile, 'id' | 'uid' | 'status'
       id: uid,
       email: user.email,
       phone: user.phone,
+      name: user.name,
       plan: user.plan,
       minutes_used: 0,
       service_type: user.service_type,
@@ -103,7 +106,7 @@ export async function updateUserPayment(uid: string) {
   }
 }
 
-export async function updateUser(uid: string, updates: { plan?: 'pessoal' | 'business' | 'exclusivo', phone?: string, email?: string, minutes_used?: number, service_type?: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null }) {
+export async function updateUser(uid: string, updates: { plan?: 'pessoal' | 'business' | 'exclusivo', phone?: string, email?: string, minutes_used?: number, service_type?: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null, name?: string }) {
   const { error } = await supabaseAdmin
     .from('users')
     .update(updates)

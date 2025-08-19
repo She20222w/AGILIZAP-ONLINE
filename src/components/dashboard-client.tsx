@@ -30,7 +30,7 @@ import Image from 'next/image';
 import { UserProfile } from '@/services/user-service';
 import { getUserProfile, updateUserProfile } from '@/app/actions';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { getProductByPriceId } from '@/stripe-config';
 
@@ -48,6 +48,7 @@ const [countdown, setCountdown] = React.useState<number | null>(null);
 const [status, setStatus] = React.useState<'active' | 'inactive' | null>(null);
 const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isPortalLoading, setIsPortalLoading] = React.useState(false);
   const [isUserLoading, setIsUserLoading] = React.useState(true);
   const [subscriptionData, setSubscriptionData] = React.useState<any>(null);
   const { toast } = useToast();
@@ -122,7 +123,7 @@ const handleServiceTypeChange = async (value: ServiceType) => {
     if (userProfile && user) {
         const result = await updateUserProfile(user.id, { service_type: value });
         if (result.success) {
-            setUserProfile(prev => prev ? { ...prev, service_type: value } : prev);
+            setUserProfile((prev: UserProfile | null) => prev ? { ...prev, service_type: value } : prev);
             toast({ title: 'Tipo de serviço atualizado!', description: `Tipo de serviço alterado para ${value}.` });
         } else {
             toast({ title: 'Erro', description: `Não foi possível atualizar o tipo de serviço. ${result.error}`, variant: 'destructive' });
@@ -207,6 +208,13 @@ const handleServiceTypeChange = async (value: ServiceType) => {
     }, [countdown]);
     
     const currentProduct = subscriptionData?.price_id ? getProductByPriceId(subscriptionData.price_id) : null;
+
+      const handleManageSubscription = () => {
+        const name = userProfile?.name || '';
+        const email = userProfile?.email || '';
+        const text = encodeURIComponent(`Olá, meu nome é ${name} e meu email é ${email}. Preciso de suporte para meu plano.`);
+        window.open(`https://wa.me/5599981788458?text=${text}`, '_blank');
+      };
     
     if (isUserLoading) {
       return (
@@ -232,7 +240,9 @@ const handleServiceTypeChange = async (value: ServiceType) => {
   }
 
   return (
-    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+    <>
+      <h2 className="mb-4 text-2xl font-semibold">Olá, {userProfile?.name}</h2>
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -378,17 +388,8 @@ const handleServiceTypeChange = async (value: ServiceType) => {
             <RadioGroup
               className="grid grid-cols-1 gap-2 mt-2"
               value={plan}
-              onValueChange={async (value: PlanType) => {
-                setPlan(value);
-                const result = await updateUserProfile(user!.id, { plan: value });
-                if (result.success) {
-                  setUserProfile(prev => prev ? { ...prev, plan: value } : prev);
-                  toast({ title: 'Plano atualizado!', description: `Seu plano foi alterado para ${value}.` });
-                } else {
-                  toast({ title: 'Erro', description: `Não foi possível atualizar o plano. ${result.error}`, variant: 'destructive' });
-                }
-              }}
-              disabled={isLoading || isUserLoading}
+              onValueChange={async () => {}}
+              disabled={true}
             >
               <Label htmlFor="pessoal" className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
                 <RadioGroupItem value="pessoal" id="pessoal" className="sr-only" />
@@ -427,13 +428,13 @@ const handleServiceTypeChange = async (value: ServiceType) => {
           </div>
                   </CardContent>
         <CardFooter>
-          <Button asChild className="w-full">
-            <Link href={process.env.NEXT_PUBLIC_WHATSAPP_ADMIN_LINK || "https://wa.me"} target="_blank">
-              Gerenciar Assinatura
-            </Link>
+          <Button onClick={handleManageSubscription} className="w-full">
+            {isPortalLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Gerenciar Plano/Suporte
           </Button>
         </CardFooter>
       </Card>
     </div>
+    </>
   );
 }

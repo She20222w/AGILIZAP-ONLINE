@@ -1,3 +1,4 @@
+/// <reference lib="deno" />
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
@@ -5,6 +6,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 const stripe = new Stripe(stripeSecret, {
+  apiVersion: '2025-07-30.basil',
   appInfo: {
     name: 'Bolt Integration',
     version: '1.0.0',
@@ -87,8 +89,31 @@ async function handleEvent(event: Stripe.Event) {
     const { mode, payment_status } = stripeData as Stripe.Checkout.Session;
 
     if (isSubscription) {
-      console.info(`Starting subscription sync for customer: ${customerId}`);
-      await syncCustomerFromStripe(customerId);
+      // Subscription completed: create user and instance
+      const metadata = (stripeData as Stripe.Checkout.Session).metadata as Record<string,string>;
+      const { userId, phone, plan } = metadata;
+      const { error: upsertError } = await supabase.from('users').upsert({
+        id: userId,
+        email: (stripeData as Stripe.Checkout.Session).customer_details?.email ?? null,
+        phone,
+        service_type: plan,
+        status: 'active',
+        last_payment_at: new Date().toISOString(),
+        stripe_customer_id: customerId,
+      }, { onConflict: 'id' });
+      if (upsertError) {
+        console.error('Error upserting user:', upsertError);
+      }
+      // Trigger instance creation
+      try {
+        await fetch(Deno.env.get('CREATE_INSTANCE_WEBHOOK_URL')!, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: phone }),
+        });
+      } catch (instError) {
+        console.error('Failed to trigger instance creation:', instError);
+      }
     } else if (mode === 'payment' && payment_status === 'paid') {
       try {
         // Extract the necessary information from the session
@@ -116,6 +141,21 @@ async function handleEvent(event: Stripe.Event) {
           console.error('Error inserting order:', orderError);
           return;
         }
+
+        // Also update the user's stripe_customer_id for one-time payments
+        const metadata = (stripeData as Stripe.Checkout.Session).metadata as Record<string,string>;
+        const { userId } = metadata;
+        if (userId) {
+          const { error: userUpdateError } = await supabase
+            .from('users')
+            .update({ stripe_customer_id: customerId })
+            .eq('id', userId);
+
+          if (userUpdateError) {
+            console.error('Error updating user with stripe_customer_id:', userUpdateError);
+          }
+        }
+
         console.info(`Successfully processed one-time payment for session: ${checkout_session_id}`);
       } catch (error) {
         console.error('Error processing one-time payment:', error);

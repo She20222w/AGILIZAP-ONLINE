@@ -1,10 +1,31 @@
 import { Header } from '@/components/header';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+export const dynamic = 'force-dynamic';
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  console.log('[DEBUG] user in layout:', user);
+  if (!user) {
+    redirect('/login');
+  }
+  // Redireciona usuários sem assinatura paga para a página de pricing
+  const { data: subscription } = await supabase
+    .from('stripe_user_subscriptions')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!subscription) {
+    redirect('/pricing');
+  }
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Header />

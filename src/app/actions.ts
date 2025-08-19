@@ -1,8 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { createUser, updateUserStatus, getUserById, updateUser } from '@/services/user-service';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { redirect } from 'next/navigation';
@@ -13,6 +12,7 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
+    name: z.string().min(1, "O nome é obrigatório"),
     email: z.string().email(),
     password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
     phone: z.string().refine(phone => {
@@ -34,8 +34,7 @@ export async function login(values: z.infer<typeof loginSchema>) {
     }
 
     const { email, password } = validatedFields.data;
-    const cookieStore = await cookies();
-    const supabase = createServerActionClient({ cookies: () => (cookieStore as any) });
+    const supabase = await createClient();
 
     try {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -44,6 +43,7 @@ export async function login(values: z.infer<typeof loginSchema>) {
         });
 
         if (error) {
+            console.error('[Login Action Error]:', error); // Adicionado para depuração
             switch (error.message) {
                 case 'Invalid login credentials':
                     return { error: "Email ou senha inválidos." };
@@ -66,9 +66,9 @@ export async function signup(values: z.infer<typeof signupSchema>) {
         return { error: errors.phone?.[0] ?? "Campos inválidos!" };
     }
 
-        const { email, password, phone, plan } = validatedFields.data;
-    const cookieStore = await cookies();
-    const supabase = createServerActionClient({ cookies: () => (cookieStore as any) });
+        const { name, email, password, phone, plan } = validatedFields.data;
+    console.log('[DEBUG] signup data:', { email, password: '***', phone, plan });
+    const supabase = await createClient();
 
     try {
         const { data, error } = await supabase.auth.signUp({
@@ -78,6 +78,8 @@ export async function signup(values: z.infer<typeof signupSchema>) {
                 emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
             },
         });
+        console.log('[DEBUG] supabase.auth.signUp result:', { data, error });
+        console.log('[DEBUG] signup result data.user:', data.user);
 
         if (error) {
             switch (error.message) {
@@ -91,39 +93,33 @@ export async function signup(values: z.infer<typeof signupSchema>) {
         }
 
             if (data.user) {
-                await createUser({
-                    email: data.user.email!,
-                    phone,
-                    plan: plan,
-                    last_payment_at: new Date().toISOString(),
-                    service_type: 'transcribe', // Default service type
-                }, data.user.id);
-
-            // Disparar o webhook para criar a instância de forma assíncrona
-            triggerCreateInstanceWebhook(phone);
-
-            const checkoutResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/stripe/create-checkout-session`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plan, userId: data.user.id }),
-            });
+                await createUser({ email, phone, plan, service_type: null, name, stripe_customer_id: null, last_payment_at: new Date().toISOString() }, data.user.id);
+                console.log('[DEBUG] creating checkout session payload:', { plan, userId: data.user.id, phone });
+                const checkoutResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/stripe/create-checkout-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan, userId: data.user.id, phone }),
+                });
             const checkoutData = await checkoutResponse.json();
+            console.log('[DEBUG] checkoutData:', checkoutData);
             if (checkoutData.url) {
-                redirect(checkoutData.url);
+                // Em vez de redirecionar no servidor, retornamos a URL para o cliente.
+                return { checkoutUrl: checkoutData.url };
             } else {
                 return { error: checkoutData.error || 'Não foi possível iniciar o pagamento.' };
             }
         }
 
-        return { success: "Conta criada com sucesso! Verifique seu email para confirmação." };
+        // Este retorno agora é para casos onde o data.user não existe, o que não deveria acontecer
+        // se o signUp teve sucesso sem erro.
+        return { error: "Não foi possível obter os dados do usuário após o cadastro." };
     } catch (error: any) {
         return { error: "Ocorreu um erro inesperado. Por favor, tente novamente." };
     }
 }
 
 export async function logout() {
-    const cookieStore = await cookies();
-    const supabase = createServerActionClient({ cookies: () => (cookieStore as any) });
+    const supabase = await createClient();
     await supabase.auth.signOut();
     redirect('/login');
 }
@@ -202,12 +198,22 @@ export async function updateUserProfile(userId: string, updates: { plan?: 'pesso
     }
 }
 
-export async function updateUserStatusAction(userId: string, status: 'active' | 'inactive') {
+export async function updateUserStatusAction(userId: string, status: 'active' | 'inactive' | 'reseller') {
   try {
     await updateUserStatus(userId, status);
     return { success: true };
   } catch (error: any) {
     console.error('Erro ao atualizar status do usuário:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// export function to cancel user account
+export async function cancelUserAccount({ userId, phoneNumber }: { userId: string; phoneNumber: string; }) {
+  try {
+    await updateUserStatusAction(userId, 'inactive');
+    return { success: true };
+  } catch (error: any) {
     return { success: false, error: error.message };
   }
 }

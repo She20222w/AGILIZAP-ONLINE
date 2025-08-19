@@ -10,7 +10,7 @@ export default function LoginPage() {
       </div>
       <div className="flex flex-col items-center justify-center gap-4 mb-8">
         <Zap className="h-12 w-12 text-primary" />
-        <h1 className="text-3xl font-bold font-headline">Agilizap</h1>
+        <h1 className="text-3xl font-bold font-headline">AgilyZap</h1>
         <p className="text-muted-foreground">Faça login na sua conta</p>
       </div>
       <LoginForm />

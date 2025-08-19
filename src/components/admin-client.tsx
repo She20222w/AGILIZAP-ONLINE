@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
 
 export function AdminClient() {
@@ -108,7 +108,7 @@ export function AdminClient() {
   const handleStatusChange = async (uid: string, status: UserProfile['status']) => {
     setIsUpdating(uid);
     try {
-      await updateUserStatus(uid, status);
+      await updateUserStatus(uid, status as 'active' | 'inactive' | 'reseller');
       toast({
         title: "Success",
         description: "User status updated successfully.",
@@ -237,15 +237,15 @@ export function AdminClient() {
                             <Badge variant={user.status === 'active' ? 'default' : user.status === 'reseller' ? 'secondary' : 'destructive'}>
                                 {user.status}
                             </Badge>
-                             {needsRenewal(new Date(user.last_payment_at)) && user.status === 'active' && (
+                             {needsRenewal(user.last_payment_at ? new Date(user.last_payment_at) : new Date()) && user.status === 'active' && (
                                 <Badge variant="destructive" className="ml-2">Renewal Needed</Badge>
                             )}
                         </TableCell>
                         <TableCell>{user.service_type}</TableCell>
                         <TableCell>
-                           { new Date(user.last_payment_at).toLocaleDateString() } ({getDaysSinceLastPayment(new Date(user.last_payment_at))})
+                           {user.last_payment_at ? new Date(user.last_payment_at).toLocaleDateString() : '-'} ({getDaysSinceLastPayment(user.last_payment_at ? new Date(user.last_payment_at) : new Date())})
                         </TableCell>
-                         <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                         <TableCell>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</TableCell>
                         <TableCell className="text-right">
                            <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

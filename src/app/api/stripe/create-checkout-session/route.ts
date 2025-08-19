@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { getProductByPlan } from '@/stripe-config';
 
 export async function POST(request: Request) {
+  console.log('[DEBUG] create-checkout-session request body:', await request.clone().json());
   try {
-    const { plan, userId } = (await request.json()) as { plan: 'pessoal' | 'business' | 'exclusivo'; userId: string };
+    const { plan, userId, phone } = (await request.json()) as { plan: 'pessoal' | 'business' | 'exclusivo'; userId: string; phone: string };
 
     const product = getProductByPlan(plan);
     if (!product) {
       return NextResponse.json({ error: 'Plano inválido.' }, { status: 400 });
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     
     // Get the user's session to pass the JWT token
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
         mode: product.mode,
         success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/signup?canceled=true`,
+        userId,
+        phone,
+        plan,
       }),
     });
 

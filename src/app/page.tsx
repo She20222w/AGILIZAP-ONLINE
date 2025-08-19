@@ -13,7 +13,7 @@ export default function Home() {
           className="flex items-center gap-2 text-lg font-semibold"
         >
           <Zap className="h-6 w-6 text-primary" />
-          <span className="font-headline font-bold">Agilizap</span>
+          <span className="font-headline font-bold">AgilyZap</span>
         </Link>
         <nav className="flex items-center gap-6 text-sm font-medium">
           <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
@@ -37,7 +37,7 @@ export default function Home() {
                 Otimize seu tempo. Agilize suas conversas.
               </h1>
               <p className="text-lg text-muted-foreground md:text-xl">
-                Para profissionais que usam o WhatsApp para negócios, cada segundo conta. O Agilizap transforma longos áudios em textos claros ou resumos objetivos, permitindo que você responda clientes e tome decisões com a velocidade que seu negócio exige.
+                Para profissionais que usam o WhatsApp para negócios, cada segundo conta. O AgilyZap transforma longos áudios em textos claros ou resumos objetivos, permitindo que você responda clientes e tome decisões com a velocidade que seu negócio exige.
               </p>
               <Button size="lg" asChild className="font-bold text-black text-base">
                 <Link href="/signup" className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export default function Home() {
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm font-semibold">Nossa Visão</div>
               <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Construído por Profissionais, para Profissionais</h2>
               <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed">
-                  O Agilizap nasceu da nossa própria necessidade de otimizar a comunicação. Estamos comprometidos em evoluir constantemente, criando ferramentas que resolvem problemas reais.
+                  O AgilyZap nasceu da nossa própria necessidade de otimizar a comunicação. Estamos comprometidos em evoluir constantemente, criando ferramentas que resolvem problemas reais.
               </p>
             </div>
 
@@ -132,7 +132,7 @@ export default function Home() {
                       <CardTitle>O Início: Nossa Necessidade</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-muted-foreground">Como você, enfrentávamos o desafio de gerenciar longos áudios. O Agilizap foi a nossa primeira solução para transformar comunicação em resultados.</p>
+                      <p className="text-muted-foreground">Como você, enfrentávamos o desafio de gerenciar longos áudios. O AgilyZap foi a nossa primeira solução para transformar comunicação em resultados.</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -185,7 +185,7 @@ export default function Home() {
 
       </main>
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t border-border/40">
-        <p className="text-xs text-muted-foreground">&copy; 2025 Agilizap. Todos os direitos reservados.</p>
+        <p className="text-xs text-muted-foreground">&copy; 2025 AgilyZap. Todos os direitos reservados.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link href="#" className="text-xs hover:underline underline-offset-4">
             Termos de Serviço
