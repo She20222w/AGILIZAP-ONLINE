@@ -25,7 +25,8 @@ export default async function SignupPage() {
     .eq('id', user.id)
     .maybeSingle();
 
-  if (!appUser?.stripe_customer_id || appUser.status !== 'active') {
+  const bypass = process.env.DEV_BYPASS_SUBSCRIPTION === 'true';
+  if (!bypass && (!appUser?.stripe_customer_id || appUser.status !== 'active')) {
     redirect('/pricing');
   }
 

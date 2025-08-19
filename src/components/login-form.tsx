@@ -45,30 +45,18 @@ export function LoginForm() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     startTransition(async () => {
       const result = await login(values);
-      if (result.success) {
+      if (result?.success) {
         toast({
           title: 'Sucesso',
           description: result.success,
         });
-        // Verificar assinatura do usuário
-        const {
-          data: { user: authUser },
-        } = await supabase.auth.getUser();
-        if (authUser) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('stripe_customer_id, status')
-            .eq('id', authUser.id)
-            .maybeSingle();
-          if (profile?.stripe_customer_id && profile.status === 'active') {
-            router.push('/dashboard');
-          } else {
-            router.push('/pricing');
-          }
-        } else {
+        const bypassLogin = process.env.NEXT_PUBLIC_DEV_BYPASS_SUBSCRIPTION === 'true';
+        if (bypassLogin) {
           router.push('/dashboard');
+          return;
         }
-      } else if (result.error) {
+        router.push('/dashboard');
+      } else if (result?.error) {
         toast({
           title: 'Erro',
           description: result.error,
