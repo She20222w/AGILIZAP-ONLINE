@@ -189,7 +189,7 @@ export async function getUserProfile(userId: string) {
     }
 }
 
-export async function updateUserProfile(userId: string, updates: { plan?: 'pessoal' | 'business' | 'exclusivo', service_type?: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null }) {
+export async function updateUserProfile(userId: string, updates: { plan?: 'pessoal' | 'business' | 'exclusivo', service_type?: 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto' | null, phone?: string }) {
     try {
         await updateUser(userId, updates);
         return { success: true };

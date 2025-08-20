@@ -13,10 +13,12 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { generateQrCode, updateUserStatusAction } from '@/app/actions';
+import { generateQrCode, updateUserStatusAction, updateUserProfile } from '@/app/actions';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import {
   CreditCard,
   FileText,
@@ -28,10 +30,11 @@ import {
 import { Skeleton } from './ui/skeleton';
 import Image from 'next/image';
 import { UserProfile } from '@/services/user-service';
-import { getUserProfile, updateUserProfile } from '@/app/actions';
+import { getUserProfile } from '@/app/actions';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { createSupabaseClient } from '@/lib/supabase-client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+
 import { getProductByPriceId } from '@/stripe-config';
 
 type ServiceType = 'transcribe' | 'summarize' | 'resumetranscribe' | 'auto';
@@ -42,11 +45,13 @@ export function DashboardClient() {
   const [user, setUser] = React.useState<SupabaseUser | null>(null);
   const [userProfile, setUserProfile] = React.useState<UserProfile | null>(null);
   const [serviceType, setServiceType] = React.useState<ServiceType>('transcribe');
+const [phoneInput, setPhoneInput] = React.useState<string>(userProfile?.phone || '');
 const [plan, setPlan] = React.useState<PlanType>('pessoal');
   const [qrCode, setQrCode] = React.useState<string | null>(null);
 const [countdown, setCountdown] = React.useState<number | null>(null);
 const [status, setStatus] = React.useState<'active' | 'inactive' | null>(null);
 const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
+const [isCreatingInstance, setIsCreatingInstance] = React.useState<boolean>(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isPortalLoading, setIsPortalLoading] = React.useState(false);
   const [isUserLoading, setIsUserLoading] = React.useState(true);
@@ -73,6 +78,7 @@ const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
             setUserProfile(result.data);
             setPlan(result.data.plan);
             setServiceType(result.data.service_type ?? 'transcribe');
+            setPhoneInput(result.data.phone);
             const initialStatus = result.data.status === 'active' ? 'active' : 'inactive';
             setStatus(initialStatus);
             
@@ -100,6 +106,7 @@ const [isVerifying, setIsVerifying] = React.useState<boolean>(false);
               setUserProfile(result.data);
               setPlan(result.data.plan);
               setServiceType(result.data.service_type ?? 'transcribe');
+            setPhoneInput(result.data.phone);
               
               // Fetch subscription data
               const { data: subscription } = await supabase
@@ -129,6 +136,28 @@ const handleServiceTypeChange = async (value: ServiceType) => {
             toast({ title: 'Erro', description: `Não foi possível atualizar o tipo de serviço. ${result.error}`, variant: 'destructive' });
         }
     }
+};
+
+const handlePhoneSave = async () => {
+  if (!phoneInput) {
+    toast({ title: 'Erro', description: 'Digite um número de telefone.', variant: 'destructive' });
+    return;
+  }
+  try {
+    const parsed = parsePhoneNumberFromString(phoneInput);
+    const formatted = parsed && parsed.isValid() ? parsed.number : phoneInput;
+    if (user) {
+      const result = await updateUserProfile(user.id, { phone: formatted });
+      if (result.success) {
+        setUserProfile(prev => prev ? { ...prev, phone: formatted } : prev);
+        toast({ title: 'Telefone atualizado!', description: `Telefone salvo: ${formatted}` });
+      } else {
+        toast({ title: 'Erro', description: `Não foi possível atualizar o telefone. ${result.error}`, variant: 'destructive' });
+      }
+    }
+  } catch {
+    toast({ title: 'Erro', description: 'Número de telefone inválido.', variant: 'destructive' });
+  }
 };
 
   const handleGenerateQr = async () => {
@@ -172,7 +201,32 @@ const handleServiceTypeChange = async (value: ServiceType) => {
     }
     };
     
-        const verifyStatus = async () => {
+        const handleCreateInstance = async () => {
+  if (!userProfile?.phone) {
+    toast({ title: 'Erro', description: 'Nenhum telefone encontrado.', variant: 'destructive' });
+    return;
+  }
+  setIsCreatingInstance(true);
+  try {
+    const response = await fetch('/api/create-instance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber: userProfile.phone }),
+    });
+    const result = await response.json();
+    if (result.success) {
+      toast({ title: 'Instância criada!', description: 'Instância iniciada com sucesso.' });
+    } else {
+      toast({ title: 'Erro ao criar instância', description: result.error || 'Não foi possível criar a instância.', variant: 'destructive' });
+    }
+  } catch (error) {
+    toast({ title: 'Erro', description: 'Erro ao criar instância.', variant: 'destructive' });
+  } finally {
+    setIsCreatingInstance(false);
+  }
+};
+
+const verifyStatus = async () => {
       if (!userProfile?.phone) {
         return;
       }
@@ -306,8 +360,21 @@ const handleServiceTypeChange = async (value: ServiceType) => {
                 </div>
                 Modo Automático
               </Label>
-            </RadioGroup>
-          </div>
+</RadioGroup>
+            </div>
+            <div>
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                className="mt-2 w-full"
+              />
+              <Button onClick={handlePhoneSave} variant="outline" className="mt-2">
+                Salvar Telefone
+              </Button>
+            </div>
 
           <div className="flex justify-center">
             {isLoading && (
@@ -343,7 +410,15 @@ const handleServiceTypeChange = async (value: ServiceType) => {
           </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between">
-          <Button onClick={handleGenerateQr} disabled={isLoading || isUserLoading || isLimitExceeded} size="lg" className="w-full sm:w-auto">
+            <Button onClick={handleCreateInstance} disabled={isCreatingInstance || isUserLoading || isLimitExceeded} size="lg" className="w-full sm:w-auto mr-2">
+              {isCreatingInstance ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Smartphone className="mr-2 h-4 w-4" />
+              )}
+              Ativar Número
+            </Button>
+            <Button onClick={handleGenerateQr} disabled={isLoading || isUserLoading || isLimitExceeded} size="lg" className="w-full sm:w-auto">
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

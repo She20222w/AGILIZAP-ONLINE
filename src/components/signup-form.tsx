@@ -97,10 +97,12 @@ function onSubmit(values: z.infer<typeof formSchema>) {
       return;
     }
     // Inicia sessão de checkout no Stripe
+    const parsedPhoneNumber = parsePhoneNumberFromString(values.phone);
+    const formattedPhone = parsedPhoneNumber && parsedPhoneNumber.isValid() ? parsedPhoneNumber.number : values.phone;
     const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: values.plan, userId: user.id, phone: values.phone }),
+      body: JSON.stringify({ plan: values.plan, userId: user.id, phone: formattedPhone }),
     });
     const checkoutData = await checkoutRes.json();
     if (checkoutData.url) {
