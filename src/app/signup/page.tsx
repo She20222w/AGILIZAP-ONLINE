@@ -25,10 +25,8 @@ export default async function SignupPage() {
     .eq('id', user.id)
     .maybeSingle();
 
-  const bypass = process.env.DEV_BYPASS_SUBSCRIPTION === 'true';
-  if (!bypass && (!appUser?.stripe_customer_id || appUser.status !== 'active')) {
-    redirect('/pricing');
-  }
+  // Permite o acesso à página de signup mesmo sem pagamento obrigatório
+  // O pagamento é opcional e pode ser feito depois
 
   return (
     <Suspense fallback={null}>

@@ -39,6 +39,7 @@ import { createSupabaseClient } from '@/lib/supabase-client';
           }
       }, "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)."),
     plan: z.enum(['pessoal', 'business', 'exclusivo'], { required_error: 'Por favor, selecione um plano.' }),
+    service_type: z.enum(['transcribe', 'summarize', 'resumetranscribe', 'auto'], { required_error: "Por favor, selecione um tipo de serviço." }),
   });
 
 type PlanType = 'pessoal' | 'business' | 'exclusivo';
@@ -47,7 +48,6 @@ export function SignupForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = React.useTransition();
-  const supabase = createSupabaseClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -57,60 +57,43 @@ export function SignupForm() {
       password: '',
       phone: '',
       plan: 'pessoal',
+      service_type: 'auto',
     },
   });
 
 function onSubmit(values: z.infer<typeof formSchema>) {
   startTransition(async () => {
-    // Cria usuário no Supabase Auth
-    const supabaseClient = createSupabaseClient();
-    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      },
-    });
-    let user = signUpData?.user ?? null;
-    if (signUpError) {
-      // Usuário já existe, tenta login
-      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
+    try {
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
       });
-      if (signInError) {
+      const data = await response.json();
+      if (!response.ok) {
         toast({
           title: 'Erro no Cadastro',
-          description: signInError.message,
+          description: data.error || 'Ocorreu um erro durante o cadastro.',
           variant: 'destructive',
         });
         return;
       }
-      user = signInData.user;
-    }
-    if (!user) {
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        toast({
+          title: data.success ? 'Sucesso!' : 'Erro no Cadastro',
+          description: data.success || data.error || 'Ocorreu um erro.',
+          variant: data.success ? 'default' : 'destructive',
+        });
+        if (data.success) {
+          router.push('/dashboard');
+        }
+      }
+    } catch (error: any) {
       toast({
         title: 'Erro no Cadastro',
-        description: 'Não foi possível obter dados do usuário.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    // Inicia sessão de checkout no Stripe
-    const parsedPhoneNumber = parsePhoneNumberFromString(values.phone);
-    const formattedPhone = parsedPhoneNumber && parsedPhoneNumber.isValid() ? parsedPhoneNumber.number : values.phone;
-    const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: values.plan, userId: user.id, phone: formattedPhone }),
-    });
-    const checkoutData = await checkoutRes.json();
-    if (checkoutData.url) {
-      window.location.href = checkoutData.url;
-    } else {
-      toast({
-        title: 'Erro no Pagamento',
-        description: checkoutData.error || 'Não foi possível iniciar o pagamento.',
+        description: 'Falha na comunicação com o servidor.',
         variant: 'destructive',
       });
     }
@@ -169,6 +152,61 @@ function onSubmit(values: z.infer<typeof formSchema>) {
                   <FormLabel>Telefone (WhatsApp)</FormLabel>
                   <FormControl>
                     <Input placeholder="+5511999999999" {...field} disabled={isPending} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="service_type"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Tipo de Serviço Padrão</FormLabel>
+                  <p className="text-sm text-muted-foreground">
+                    Qual serviço você usará com mais frequência?
+                  </p>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      className="grid grid-cols-2 gap-4"
+                      disabled={isPending}
+                    >
+                      <FormItem>
+                        <Label
+                          htmlFor="auto"
+                          className="flex flex-col items-center justify-center rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          <FormControl>
+                            <RadioGroupItem value="auto" id="auto" className="sr-only" />
+                          </FormControl>
+                          <div className="font-medium">Automático</div>
+                        </Label>
+                      </FormItem>
+                      <FormItem>
+                        <Label
+                          htmlFor="transcribe"
+                          className="flex flex-col items-center justify-center rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          <FormControl>
+                            <RadioGroupItem value="transcribe" id="transcribe" className="sr-only" />
+                          </FormControl>
+                          <div className="font-medium">Transcrever</div>
+                        </Label>
+                      </FormItem>
+                      <FormItem>
+                        <Label
+                          htmlFor="summarize"
+                          className="flex flex-col items-center justify-center rounded-md border-2 border-primary/50 bg-popover p-4 text-popover-foreground transition-colors hover:bg-gradient-to-r hover:from-primary hover:via-accent hover:to-secondary hover:text-white [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          <FormControl>
+                            <RadioGroupItem value="summarize" id="summarize" className="sr-only" />
+                          </FormControl>
+                          <div className="font-medium">Resumir</div>
+                        </Label>
+                      </FormItem>
+                    </RadioGroup>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

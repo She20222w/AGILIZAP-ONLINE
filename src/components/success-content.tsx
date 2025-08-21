@@ -64,12 +64,17 @@ export function SuccessContent() {
 
   useEffect(() => {
     if (!isLoading && !error) {
-      const timer = setTimeout(() => {
-        router.push('/dashboard');
+      const timer = setTimeout(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.push('/dashboard');
+        } else {
+          router.push('/login?next=/dashboard');
+        }
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, error, router]);
+  }, [isLoading, error, router, supabase]);
 
   if (isLoading) {
     return (

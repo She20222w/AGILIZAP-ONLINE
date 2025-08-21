@@ -24,7 +24,9 @@ const signupSchema = z.object({
         }
     }, "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)."),
     plan: z.enum(['pessoal', 'business', 'exclusivo']),
+    service_type: z.enum(['transcribe', 'summarize', 'resumetranscribe', 'auto'], { required_error: "Por favor, selecione um tipo de serviço." }),
 });
+
 
 export async function login(values: z.infer<typeof loginSchema>) {
     const validatedFields = loginSchema.safeParse(values);
@@ -66,8 +68,8 @@ export async function signup(values: z.infer<typeof signupSchema>) {
         return { error: errors.phone?.[0] ?? "Campos inválidos!" };
     }
 
-        const { name, email, password, phone, plan } = validatedFields.data;
-    console.log('[DEBUG] signup data:', { email, password: '***', phone, plan });
+        const { name, email, password, phone, plan, service_type } = validatedFields.data;
+    console.log('[DEBUG] signup data:', { email, password: '***', phone, plan, service_type });
     const supabase = await createClient();
 
     try {
@@ -93,28 +95,50 @@ export async function signup(values: z.infer<typeof signupSchema>) {
         }
 
             if (data.user) {
-                await createUser({ email, phone, plan, service_type: null, name, stripe_customer_id: null, last_payment_at: new Date().toISOString() }, data.user.id);
-                console.log('[DEBUG] creating checkout session payload:', { plan, userId: data.user.id, phone });
-                const checkoutResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/stripe/create-checkout-session`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plan, userId: data.user.id, phone }),
-                });
-            const checkoutData = await checkoutResponse.json();
-            console.log('[DEBUG] checkoutData:', checkoutData);
-            if (checkoutData.url) {
-                // Em vez de redirecionar no servidor, retornamos a URL para o cliente.
-                return { checkoutUrl: checkoutData.url };
-            } else {
-                return { error: checkoutData.error || 'Não foi possível iniciar o pagamento.' };
+                // Cria o usuário no banco de dados
+                try {
+                    await createUser({ email, phone, plan, service_type, name, stripe_customer_id: null, last_payment_at: new Date().toISOString() }, data.user.id);
+                } catch (createUserError: any) {
+                    console.error('Error creating user in database:', createUserError);
+                    // Return a specific error if user creation fails
+                return { error: `Falha ao criar seu perfil: ${createUserError.message || 'Erro desconhecido.'}` };
             }
+            
+            // Tenta criar a sessão de checkout, mas não falha se não conseguir
+            console.log('[DEBUG] creating checkout session payload:', { plan, userId: data.user.id, phone });
+                console.log('[DEBUG] creating checkout session payload:', { plan, userId: data.user.id, phone });
+                try {
+                    const checkoutResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/stripe/create-checkout-session`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ plan, userId: data.user.id, phone }),
+                    });
+                    const checkoutData = await checkoutResponse.json();
+                    console.log('[DEBUG] checkoutData:', checkoutData);
+                    
+                    if (checkoutData.url) {
+                        // Retorna a URL de checkout se disponível
+                        return { checkoutUrl: checkoutData.url };
+                    } else {
+                        // Se o checkout falhar, mas o usuário foi criado, retorna sucesso com aviso
+                        return { success: "Cadastro realizado com sucesso! Você pode usar o sistema agora. O pagamento pode ser concluído posteriormente." };
+                    }
+                } catch (error) {
+                    console.error('Erro ao criar sessão de checkout:', error);
+                    // Se o checkout falhar, mas o usuário foi criado, retorna sucesso com aviso
+                    return { success: "Cadastro realizado com sucesso! Você pode usar o sistema agora. O pagamento pode ser concluído posteriormente." };
+                }
+                
+                // Se chegou aqui, o cadastro e o checkout foram bem-sucedidos
+                return { success: "Cadastro realizado com sucesso! Você pode usar o sistema agora." };
         }
 
         // Este retorno agora é para casos onde o data.user não existe, o que não deveria acontecer
         // se o signUp teve sucesso sem erro.
         return { error: "Não foi possível obter os dados do usuário após o cadastro." };
     } catch (error: any) {
-        return { error: "Ocorreu um erro inesperado. Por favor, tente novamente." };
+        // This catch block handles errors from supabase.auth.signUp
+        return { error: "Ocorreu um erro inesperado durante o cadastro. Por favor, tente novamente." };
     }
 }
 

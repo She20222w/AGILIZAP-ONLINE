@@ -65,6 +65,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Protect success page
+  if (request.nextUrl.pathname === '/success') {
+    if (!session) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
   // Redirect authenticated users away from auth pages
   if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') && session) {
     // Only redirect if not already trying to access dashboard

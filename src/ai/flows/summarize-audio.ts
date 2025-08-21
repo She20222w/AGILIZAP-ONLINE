@@ -53,19 +53,18 @@ const summarizeAudioFlow = ai.defineFlow(
   async (input) => {
     const user = await getUserById(input.userId);
 
-    if (!user || user.status !== 'active') {
-      throw new Error('User is not active or does not exist.');
+    if (!user) {
+      throw new Error('User does not exist.');
     }
     
-    // Check if subscription is expired (30 days)
-    if (!user.last_payment_at) {
-      throw new Error('User has no payment date.');
-    }
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    if (new Date(user.last_payment_at) < thirtyDaysAgo) {
-        // Here you would also update the user's status to 'inactive' in a real app
-        throw new Error('Subscription has expired. Please renew.');
+    // Verifica se o usuário atingiu o limite de minutos do plano
+    const planLimits: Record<string, number> = { pessoal: 200, business: 400, exclusivo: 1000 };
+    const userPlan = user.plan as keyof typeof planLimits;
+    const planLimitMinutes = userPlan ? planLimits[userPlan] : 0;
+    const planLimitSeconds = planLimitMinutes * 60;
+    
+    if (user.minutes_used >= planLimitSeconds) {
+      throw new Error('Você atingiu o limite de minutos do seu plano. Atualize seu plano para continuar usando o serviço.');
     }
 
     const {output} = await prompt(input);
